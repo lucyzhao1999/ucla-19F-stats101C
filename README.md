@@ -3,7 +3,7 @@ UCLA 2019 Fall- STATS 101C Introduction to Statistical Models and Data Mining - 
 
 The project is a Kaggle competition for predicting the winning team based on previous basketball data of size 9520* 218. 
 
-Our team tried models with many different techniques including neural network, logistic regression, LDA, KNN, Ridge, Random Forest, and SVM, together with some feature engineering. The final project file here is the code of our final model using SVM, which achieved the best Kaggle performance.
+Our team tried models with many different techniques including neural network, logistic regression, LDA, KNN, Ridge, Random Forest, and SVM, together with some feature engineering procedures. The final project file here is the code of our final model using SVM, which achieved the best Kaggle performance among our 25 models.
 
 
 ## Production& Relative Topics
