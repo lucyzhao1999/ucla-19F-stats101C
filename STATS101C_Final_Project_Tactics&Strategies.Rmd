@@ -1,6 +1,6 @@
 ---
 title: "STATS101C_Final_Project_Tactics & Strategies"
-author: "Xunye Qian (504779593)   Xingruo Zhang (304756494)   Lucy Zhao (304917901)"
+author: "Xunye Qian  Xingruo Zhang   Lucy Zhao"
 output:
   pdf_document: default
   html_notebook: default
