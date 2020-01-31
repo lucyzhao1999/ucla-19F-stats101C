@@ -1,0 +1,128 @@
+---
+title: "STATS101C_Final_Project_Tactics & Strategies"
+author: "Xunye Qian (504779593)   Xingruo Zhang (304756494)   Lucy Zhao (304917901)"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+# Load packages
+library(corrplot)
+library(e1071)
+library(caret)
+```
+
+# 1. Data Precessing & Initial Variable Selection
+We first removed all the duplicated columns under different names and stored the resulting dataset in a new .csv file called 'train_rm.csv'. The new dataset contains 156 variable.
+```{r}
+# Load Data
+train_rm <- read.csv("train_rm.csv")
+test <- read.csv("test.csv")
+```
+
+We then recoded the response variable 'HTWins' into a 0/1 variable called 'HTwins_01' ('Yes' as 1 and 'No' as 0) and calculated the correlations between all numeric variables and the reponse variable. 
+```{r}
+# Recode the response variable into a 0/1 variable
+train_rm$HTWins_01 <- numeric(nrow(train_rm))
+train_rm$HTWins_01[train_rm$HTWins == 'Yes'] <- 1
+train_rm$HTWins_01[train_rm$HTWins == 'No'] <- 0
+
+# Select the response variable and the numeric variables
+train_rm_double <- train_rm[, sapply(train_rm, typeof) == 'double']
+
+# Calculate the correlations between all the variables
+cor_all <- cor(train_rm_double)
+
+top20 <- train_rm[,c("HTWins_01",names(sort(abs(cor_all['HTWins_01',]), decreasing = TRUE)[1:20]))]
+
+# The 20 variables most correlated withe the response variable
+names(sort(abs(cor_all['HTWins_01',]), decreasing = TRUE)[2:20])
+```
+
+When we scrutinized the variables that have the highest correlations with the response variable, we found that 'VT.OS1.plmin', 'VT.OS2.plmin', 'VT.OS3.plmin', 'VT.OS4.plmin', and 'VT.OS5.plmin' as well as 'VT.S1.plmin', 'VT.S2.plmin', 'VT.S3.plmin', 'VT.S4.plmin', and 'VT.S5.plmin' are all present, and 'HT.S1.pts' also had data for other starting player positions. Therefore, we added up 'VT.OS1.plmin', 'VT.OS2.plmin', 'VT.OS3.plmin', 'VT.OS4.plmin', and 'VT.OS5.plmin' to create a new variable called 'VT.OS.plmin.total', and we also added up 'VT.S1.plmin', 'VT.S2.plmin', 'VT.S3.plmin', 'VT.S4.plmin', and 'VT.S5.plmin' to create a new variable called 'VT.S.plmin.total'. Also, we added up 'HT.S1.pts', 'HT.S2.pts', 'HT.S3.pts', 'HT.S4.pts', and 'HT.S5.pts' to create a new variable called 'HT.total.pts'. 
+
+```{r}
+train_rm$VT.OS.plmin.total <- train_rm$VT.OS1.plmin + train_rm$VT.OS2.plmin + train_rm$VT.OS3.plmin +
+  train_rm$VT.OS4.plmin + train_rm$VT.OS5.plmin
+test$VT.OS.plmin.total <- test$VT.OS1.plmin + test$VT.OS2.plmin + test$VT.OS3.plmin + 
+  test$VT.OS4.plmin + test$VT.OS5.plmin
+
+train_rm$VT.S.plmin.total <- train_rm$VT.S1.plmin + train_rm$VT.S2.plmin + train_rm$VT.S3.plmin +
+  train_rm$VT.S4.plmin + train_rm$VT.S5.plmin
+test$VT.S.plmin.total <- test$VT.S1.plmin + test$VT.S2.plmin + test$VT.S3.plmin + 
+  test$VT.S4.plmin + test$VT.S5.plmin
+
+train_rm$HT.total.pts <- train_rm$HT.S1.pts + train_rm$HT.S2.pts + train_rm$HT.S3.pts + 
+  train_rm$HT.S4.pts + train_rm$HT.S5.pts
+test$HT.total.pts <- test$HT.S1.pts + test$HT.S2.pts + test$HT.S3.pts + 
+  test$HT.S4.pts + test$HT.S5.pts
+```
+
+
+# 2. Models & More Variable Selection
+## 2.1 Logistic Regression with 11 Variables
+We substituted the single varialbes with the totals, and used the remaining 11 variables to fit a logistic regression. 
+```{r} 
+train_rm1 <- train_rm[,c('HTWins_01', "VT.OS.plmin.total", 'VT.S.plmin.total', "VT.OTA.ast", 
+                         "VT.TA.ast", "VT.OTA.pts","VT.OTS.pts","VT.OTA.fgm","VT.TA.pts","VT.pmxU","VT.OTS.ast","HT.total.pts")]
+
+# Correlations between the 11 selected variables
+train_rm1_cor <- cor(train_rm1)
+corrplot.mixed(train_rm1_cor,lower = "number", upper = "pie")
+```
+
+With this first logistic regression model, we reached a training accuracy of 0.6523. 
+```{r}
+logistic1 <- glm(HTWins_01 ~ ., data = train_rm1, family = 'binomial')
+summary(logistic1)
+
+logistic1_pred <- predict(logistic1)
+logistic1_01 <- ifelse(logistic1_pred > 0.5, 1, 0)
+confusionMatrix(as.factor(logistic1_01), as.factor(train_rm1$HTWins_01))
+```
+
+
+## 2.2 Logistic Regression with 9 Variables
+From the summary of the logistic regression, we found that the coefficients of 'VT.TA.pts' and 'VT.pmxU' are not statistically significant. Hence, we removed 'VT.TA.pts' and 'VT.pmxU' from our selected variables.
+```{r}
+train_rm2 <- train_rm[,c('HTWins_01', "VT.OS.plmin.total", 'VT.S.plmin.total', "VT.OTA.ast", 
+                         "VT.TA.ast", "VT.OTA.pts", "VT.OTS.pts","VT.OTA.fgm","VT.OTS.ast","HT.total.pts")]
+
+# Correlations between the 11 selected variables
+train_rm2_cor <- cor(train_rm2)
+corrplot.mixed(train_rm2_cor,lower = "number", upper = "pie")
+```
+
+We then fitted another logistic regression using the resulting 9 variables. We saw that after removing the 2 variable, our training accuracy improved from 0.6523 to 0.6533. 
+```{r}
+logistic2 <- glm(HTWins_01 ~., data = train_rm2, family = 'binomial')
+summary(logistic2)
+
+logistic2_pred <- predict(logistic2)
+logistic2_01 <- ifelse(logistic2_pred > 0.5, 1, 0)
+confusionMatrix(as.factor(logistic2_01), as.factor(train_rm2$HTWins_01))
+```
+
+## 2.3 Support Vector Machine (SVM) with 9 Variables
+We applied the same 9 variables to train a Support Vector Machine (SVM). We saw that the new model significantly improved the training accuracy to 0.6765.
+```{r}
+svm1 <- svm(formula = HTWins_01 ~ ., 
+                 data = train_rm2, 
+                 type = 'C-classification', 
+                 kernel = 'linear', cost = 10)
+svm1_pred <- predict(svm1, train_rm2)
+
+confusionMatrix(as.factor(svm1_pred), as.factor(train_rm2$HTWins_01))
+```
+
+
+# III. Output
+```{r}
+test17_01 <- predict(svm1, test)
+test17_YN <- as.factor(ifelse(test17_01 == 1, 'Yes', 'No'))
+test17_output <- data.frame('id' = test$id, 'HTWins' = test17_YN)
+#write.csv(test17_output, "test17.csv", row.names = FALSE)
+```
+
+Our final model's public score on kaggle is 0.67475, and its private score on kaggle is 0.67597. 
